@@ -1,0 +1,512 @@
+
+================================================================================
+                    DECODELABS — DATA ANALYTICS INTERNSHIP
+                    Project 1: Data Cleaning & Preparation
+                    Industrial Training Kit | Batch: 2026
+================================================================================
+
+INTERN NAME: Virtual Analyst
+DATE: 2026-05-21
+PROJECT STATUS: COMPLETED ✅
+BADGE: Data Cleaning & Preparation 🛡️
+
+================================================================================
+                         TABLE OF CONTENTS
+================================================================================
+
+1.  Executive Summary
+2.  Project Goal & Requirements
+3.  Tools & Technologies Used
+4.  Dataset Overview
+5.  Phase 0: Dirty Data Audit
+    5.1  Header Row Verification
+    5.2  Duplicate Detection (OrderID)
+    5.3  Missing Values Analysis
+    5.4  Blank/Empty Values Check
+    5.5  Date Format Assessment
+    5.6  Numeric Precision Audit
+    5.7  Text Standardization Review
+    5.8  Computed Field Validation
+6.  Phase 1: Strategic Imputation
+7.  Phase 2: Integrity Audit
+8.  Phase 3: Format Standardization
+9.  Verification Gate Results
+10. Change Log (The Artifact)
+11. Key Learnings & Best Practices
+12. Conclusion
+
+================================================================================
+1. EXECUTIVE SUMMARY
+================================================================================
+
+This document presents the complete execution of DecodeLabs Project 1: Data 
+Cleaning & Preparation. The objective was to transform a raw e-commerce 
+dataset containing 1,200 order records into production-ready "Gold Standard" 
+data by handling missing values, eliminating duplicates, correcting data formats,
+and validating computed fields.
+
+OUTCOME:
+• 1,200 records preserved (0% data loss)
+• 309 missing values imputed strategically
+• 29 floating-point precision errors corrected
+• All dates standardized to ISO 8601 format
+• Zero duplicate identifiers
+• 100% computed field validation pass
+
+The project successfully meets all DecodeLabs verification gate requirements 
+and unlocks access to Project 2.
+
+================================================================================
+2. PROJECT GOAL & REQUIREMENTS
+================================================================================
+
+GOAL (from Project Brief):
+Clean a raw dataset by handling missing values, duplicates, and incorrect data.
+
+KEY REQUIREMENTS:
+• Identify missing or null values
+• Remove duplicates
+• Correct data formats (dates, numbers, text)
+
+VERIFICATION GATE (Threshold for Project 2):
+• 0% Error Rate on Unique Identifiers (OrderID)
+• 0% Error Rate on Date Formats
+
+KEY SKILLS DEMONSTRATED:
+Data cleaning, Python (Pandas), data preparation, reproducible workflows
+
+================================================================================
+3. TOOLS & TECHNOLOGIES USED
+================================================================================
+
+PRIMARY TOOL: Python (Pandas)
+Justification: Dataset contains 1,200 rows. While Excel (Power Query) handles
+< 1 million rows visually, Python provides:
+  • Scalable, automated processing
+  • Reproducible scripts (the "Pro Move")
+  • Audit trail via code comments
+  • Direct integration with data science pipelines
+
+LIBRARIES IMPORTED:
+  pandas      — Data manipulation and analysis
+  numpy       — Numerical operations (reserved for future phases)
+  datetime    — Date handling utilities
+  warnings    — Suppress non-critical alerts for clean output
+
+================================================================================
+4. DATASET OVERVIEW
+================================================================================
+
+SOURCE FILE: Dataset for Data Analytics_1_Raw.xlsx
+
+DIMENSIONS:
+  • Rows: 1,200
+  • Columns: 14
+
+COLUMN SCHEMA:
+┌─────────────────┬─────────────┬────────────────────────────────────────────┐
+│ Column Name     │ Data Type   │ Description                                │
+├─────────────────┼─────────────┼────────────────────────────────────────────┤
+│ OrderID         │ Object      │ Unique order identifier (e.g., ORD200000)  │
+│ Date            │ DateTime    │ Order date (requires ISO 8601 conversion)  │
+│ CustomerID      │ Object      │ Customer identifier (e.g., C72649)         │
+│ Product         │ Object      │ Product category (7 unique types)          │
+│ Quantity        │ Integer     │ Units ordered                              │
+│ UnitPrice       │ Float       │ Price per unit (requires 2-decimal fix)    │
+│ ShippingAddress │ Object      │ Delivery address text                        │
+│ PaymentMethod   │ Object      │ Payment type (5 categories)                │
+│ OrderStatus     │ Object      │ Order state (5 categories)                 │
+│ TrackingNumber  │ Object      │ Unique tracking code (e.g., TRK37947903)   │
+│ ItemsInCart     │ Integer     │ Total items in shopping cart               │
+│ CouponCode      │ Object      │ Discount code (309 missing values)         │
+│ ReferralSource  │ Object      │ Marketing channel (5 categories)           │
+│ TotalPrice      │ Float       │ Order total (requires 2-decimal fix)       │
+└─────────────────┴─────────────┴────────────────────────────────────────────┘
+
+================================================================================
+5. PHASE 0: DIRTY DATA AUDIT
+================================================================================
+
+The audit phase follows the DecodeLabs principle: "Before you finish, you must
+prove there are zero duplicate IDs and zero incorrectly formatted dates."
+
+This phase systematically scans the dataset for 8 categories of data quality
+issues. Issues found are flagged for correction; issues not found are
+documented as "clean — no modification required."
+
+--------------------------------------------------------------------------------
+5.1 HEADER ROW VERIFICATION
+--------------------------------------------------------------------------------
+
+ISSUE: Excel files sometimes import with the header row duplicated as data.
+
+CHECK PERFORMED:
+  Examined df.iloc[0] (first data row) to verify it contains actual order data,
+  not repeated column names.
+
+RESULT: ✅ CLEAN — NO MODIFICATION REQUIRED
+  First row contains valid order record (ORD200000, 2023-01-04, C72649, ...).
+  No header duplication detected.
+
+--------------------------------------------------------------------------------
+5.2 DUPLICATE DETECTION (OrderID)
+--------------------------------------------------------------------------------
+
+ISSUE: Duplicate OrderIDs inflate transaction counts and break uniqueness.
+
+CHECK PERFORMED:
+  df.duplicated(subset=['OrderID'], keep=False)
+  Equivalent SQL: GROUP BY OrderID HAVING COUNT(*) > 1
+
+RESULT: ✅ CLEAN — NO MODIFICATION REQUIRED
+  Total duplicate OrderID rows: 0
+  All 1,200 OrderIDs are unique.
+
+--------------------------------------------------------------------------------
+5.3 MISSING VALUES ANALYSIS
+--------------------------------------------------------------------------------
+
+ISSUE: Null values break aggregations, filters, and machine learning pipelines.
+
+CHECK PERFORMED:
+  df.isnull().sum() — column-wise null count
+
+RESULT: ⚠️ ISSUE FOUND — REQUIRES MODIFICATION
+  CouponCode: 309 missing (25.8% of dataset)
+  All other columns: 0 missing
+
+  The 25.8% missing rate is significant. Per DecodeLabs Phase 1 guidance:
+  "Handle the Gaps. Don't just delete." Listwise deletion would remove 309
+  rows (25.8% data loss), reducing statistical power and skewing analysis.
+
+  RESOLUTION: See Phase 1 — Strategic Imputation (CR001)
+
+--------------------------------------------------------------------------------
+5.4 BLANK/EMPTY VALUES CHECK
+--------------------------------------------------------------------------------
+
+ISSUE: Empty strings ('', '  ') behave differently from nulls but cause
+identical analytical problems.
+
+CHECK PERFORMED:
+  For each object column: (df[col].astype(str).str.strip() == '').sum()
+
+RESULT: ✅ CLEAN — NO MODIFICATION REQUIRED
+  No blank or whitespace-only values detected in any column.
+
+--------------------------------------------------------------------------------
+5.5 DATE FORMAT ASSESSMENT
+--------------------------------------------------------------------------------
+
+ISSUE: Dates in inconsistent formats (MM/DD/YYYY, DD-MM-YY, Excel serial
+numbers) break sorting, filtering, and time-series analysis.
+
+CHECK PERFORMED:
+  df['Date'].dtype — verified datetime64[ns] type
+  Sample inspection of first 5 values
+
+RESULT: ⚠️ PARTIAL ISSUE — REQUIRES MODIFICATION
+  Dates are already datetime objects (not Excel serial numbers), but stored
+  as datetime64[ns] which includes time component (00:00:00).
+
+  DecodeLabs standard: ISO 8601 Dates (YYYY-MM-DD) as string format.
+
+  RESOLUTION: See Phase 3 — Date Standardization (CR003)
+
+--------------------------------------------------------------------------------
+5.6 NUMERIC PRECISION AUDIT
+--------------------------------------------------------------------------------
+
+ISSUE: Floating-point arithmetic produces artifacts like 769.3799999999999
+instead of 769.38, corrupting financial reports.
+
+CHECK PERFORMED:
+  Regex scan for values with >2 decimal places: r'\.\d{3,}'
+
+RESULT: ⚠️ ISSUE FOUND — REQUIRES MODIFICATION
+  TotalPrice values with >2 decimals: 29
+  Examples: 769.3799999999999, 635.9000000000001, 440.1899999999999
+
+  Root cause: IEEE 754 floating-point representation in Excel/Python.
+
+  RESOLUTION: See Phase 3 — Numeric Precision (CR002)
+
+--------------------------------------------------------------------------------
+5.7 TEXT STANDARDIZATION REVIEW
+--------------------------------------------------------------------------------
+
+ISSUE: Inconsistent text casing ('mumbai' vs 'MUMBAI'), extra whitespace,
+and mixed formats break grouping and filtering.
+
+CHECK PERFORMED:
+  Unique value inspection for Product, PaymentMethod, OrderStatus,
+  ReferralSource, and ShippingAddress columns.
+
+RESULT: ✅ CLEAN — NO MODIFICATION REQUIRED
+  Product:     ['Chair', 'Desk', 'Laptop', 'Monitor', 'Phone', 'Printer', 'Tablet']
+  Payment:     ['Cash', 'Credit Card', 'Debit Card', 'Gift Card', 'Online']
+  OrderStatus: ['Cancelled', 'Delivered', 'Pending', 'Returned', 'Shipped']
+  Referral:    ['Email', 'Facebook', 'Google', 'Instagram', 'Referral']
+
+  All categorical fields are already in Proper Case with no whitespace issues.
+  No Bangalore/Bengaluru/BLR-style inconsistencies detected.
+
+--------------------------------------------------------------------------------
+5.8 COMPUTED FIELD VALIDATION
+--------------------------------------------------------------------------------
+
+ISSUE: Computed columns (TotalPrice = Quantity × UnitPrice) may contain
+errors from source system bugs or manual entry mistakes.
+
+CHECK PERFORMED:
+  ComputedTotal = Quantity × UnitPrice
+  PriceDiff = |TotalPrice - ComputedTotal|
+  Flag rows where PriceDiff > $0.01
+
+RESULT: ✅ CLEAN — NO MODIFICATION REQUIRED
+  Mismatches found: 0
+  All 1,200 rows validate within $0.01 tolerance.
+  The source system correctly computes TotalPrice from Quantity and UnitPrice.
+
+================================================================================
+6. PHASE 1: STRATEGIC IMPUTATION
+================================================================================
+
+CHANGE ID: CR001
+ISSUE: CouponCode — 309 missing values (25.8%)
+
+STRATEGY SELECTION:
+┌─────────────────┬──────────────────────────────────────────────────────────┐
+│ Method          │ Why Rejected/Selected                                    │
+├─────────────────┼──────────────────────────────────────────────────────────┤
+│ Listwise Delete │ ❌ REJECTED — Removes 309 rows (25.8% data loss).        │
+│                 │     Violates DecodeLabs warning: "reduces statistical   │
+│                 │     power."                                              │
+├─────────────────┼──────────────────────────────────────────────────────────┤
+│ Mean Imputation │ ❌ REJECTED — CouponCode is categorical (text), not      │
+│                 │     numeric. Mean is mathematically invalid.             │
+├─────────────────┼──────────────────────────────────────────────────────────┤
+│ Mode Imputation │ ❌ REJECTED — While mode exists ('SAVE10'), forcing    │
+│                 │     309 customers to have a coupon distorts business   │
+│                 │     reality. Not all customers use coupons.              │
+├─────────────────┼──────────────────────────────────────────────────────────┤
+│ "NONE" Flag     │ ✅ SELECTED — Business-meaningful. Explicitly marks    │
+│                 │     "no coupon used." Preserves all 1,200 records.       │
+│                 │     Enables accurate "coupon vs. no-coupon" analysis.  │
+└─────────────────┴──────────────────────────────────────────────────────────┘
+
+CODE EXECUTED:
+  df['CouponCode'] = df['CouponCode'].fillna('NONE')
+
+IMPACT:
+  Before: 309 missing (25.8%)
+  After:  0 missing (0%)
+  Data loss: 0 rows (0%)
+  Records preserved: 1,200
+
+================================================================================
+7. PHASE 2: INTEGRITY AUDIT
+================================================================================
+
+CHANGE ID: CR002 (Duplicate Detection)
+
+ISSUE: Eliminate inflated transaction counts. Unique IDs must be truly unique.
+
+AUDIT RESULT:
+  Duplicate OrderIDs:        0 ✅
+  Duplicate TrackingNumbers: 0 ✅
+  Conflicting data per ID:   0 ✅
+
+ACTION TAKEN:
+  No code modification required. Audit confirmed dataset integrity.
+  All identifiers are 1:1 with their records.
+
+BUSINESS IMPACT:
+  Transaction count is accurate at 1,200. No risk of double-counting revenue,
+  orders, or customer metrics in downstream analytics.
+
+================================================================================
+8. PHASE 3: FORMAT STANDARDIZATION
+================================================================================
+
+This phase applies the "Speak One Language" principle from the DecodeLabs
+brief: ISO dates, proper case, numeric precision, and trimmed whitespace.
+
+--------------------------------------------------------------------------------
+8.1 DATE STANDARDIZATION (CR003)
+--------------------------------------------------------------------------------
+
+STANDARD: ISO 8601 (YYYY-MM-DD)
+
+ISSUE: Dates stored as datetime64[ns] objects include time component
+(2023-01-04 00:00:00) and may cause format inconsistencies in exports.
+
+CODE EXECUTED:
+  df['Date'] = pd.to_datetime(df['Date']).dt.strftime('%Y-%m-%d')
+
+VALIDATION:
+  Regex check: ^\d{4}-\d{2}-\d{2}$
+  Invalid date formats found: 0
+
+BEFORE/AFTER:
+  Before: 2023-01-04 00:00:00 (datetime64[ns])
+  After:  2023-01-04 (string, ISO 8601)
+
+--------------------------------------------------------------------------------
+8.2 NUMERIC PRECISION (CR002)
+--------------------------------------------------------------------------------
+
+STANDARD: 2 decimal places for all monetary fields
+
+ISSUE: 29 TotalPrice values contain floating-point artifacts from IEEE 754
+binary representation (e.g., 769.3799999999999 instead of 769.38).
+
+CODE EXECUTED:
+  df['UnitPrice'] = df['UnitPrice'].round(2)
+  df['TotalPrice'] = df['TotalPrice'].round(2)
+
+VALIDATION:
+  Values with >2 decimals after fix: 0
+
+BEFORE/AFTER:
+  Before: 769.3799999999999
+  After:  769.38
+
+BUSINESS IMPACT:
+  Financial reports now sum correctly. No more $0.01 discrepancies in
+  reconciliation. Customer invoices display clean pricing.
+
+--------------------------------------------------------------------------------
+8.3 TEXT STANDARDIZATION
+--------------------------------------------------------------------------------
+
+STATUS: ✅ NO MODIFICATION REQUIRED
+
+All text fields were verified clean during Phase 0 audit:
+  • Product categories: 7 values, all Proper Case
+  • Payment methods: 5 values, all Proper Case
+  • Order statuses: 5 values, all Proper Case
+  • Referral sources: 5 values, all Proper Case
+  • Shipping addresses: No leading/trailing whitespace detected
+
+No Bangalore/Bengaluru/BLR-style inconsistencies found.
+No Mumbai/mumbai/MUMBAI inconsistencies found.
+
+================================================================================
+9. VERIFICATION GATE RESULTS
+================================================================================
+
+The Verification Gate is the mandatory checkpoint to unlock Project 2.
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ REQUIREMENT                           │ RESULT    │ METHOD                  │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ 0% Error Rate on Unique Identifiers   │ ✅ PASS   │ df.duplicated() check   │
+│ (OrderID)                             │           │ + manual verification     │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ 0% Error Rate on Date Formats         │ ✅ PASS   │ Regex validation        │
+│ (ISO 8601: YYYY-MM-DD)                │           │ ^\d{4}-\d{2}-\d{2}$     │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ 0% Missing Values                     │ ✅ PASS   │ df.isnull().sum() = 0   │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ 2-Decimal Numeric Precision           │ ✅ PASS   │ Regex scan for >2 decs  │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ Computed Field Validation             │ ✅ PASS   │ Qty × Price = Total     │
+│ (±$0.01 tolerance)                  │           │ for all 1,200 rows        │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+OVERALL STATUS: ✅ ALL GATES PASSED — PROJECT 2 UNLOCKED
+
+================================================================================
+10. CHANGE LOG (THE ARTIFACT)
+================================================================================
+
+"If It Isn't Documented, It Didn't Happen" — DecodeLabs Professional Standard
+
+┌─────────┬────────────────────────────────────────┬──────────────────────────┬──────────┐
+│ Change  │ Description                            │ Impact                   │ Status   │
+│ ID      │                                        │                          │          │
+├─────────┼────────────────────────────────────────┼──────────────────────────┼──────────┤
+│ CR001   │ Imputed 'CouponCode' missing values    │ Preserved 1,200 records  │ Resolved │
+│         │ using business-meaningful fill 'NONE'  │ (309 nulls → 0 nulls)    │          │
+│         │ Strategy: Mode/mean invalid for        │ 0% data loss             │          │
+│         │ categorical field. 'NONE' = no coupon. │                          │          │
+├─────────┼────────────────────────────────────────┼──────────────────────────┼──────────┤
+│ CR002   │ Numeric precision: 2 decimals          │ 29 floating-point vals   │ Resolved │
+│         │ UnitPrice & TotalPrice rounded         │ artifacts eliminated     │          │
+│         │ Standard: Monetary fields = 2 decimals │                          │          │
+├─────────┼────────────────────────────────────────┼──────────────────────────┼──────────┤
+│ CR003   │ Date format → ISO 8601 (YYYY-MM-DD)    │ 1,200 dates standardized │ Resolved │
+│         │ from datetime object to string format  │ 0 invalid formats        │          │
+│         │ Regex validated: ^\d{4}-\d{2}-\d{2}$   │                          │          │
+├─────────┼────────────────────────────────────────┼──────────────────────────┼──────────┤
+│ CR004   │ Duplicate OrderID Audit                │ Zero duplicates found    │ Resolved │
+│         │ Method: GROUP BY OrderID HAVING        │ No rows removed          │          │
+│         │ COUNT(*) > 1 (Python equivalent)       │                          │          │
+├─────────┼────────────────────────────────────────┼──────────────────────────┼──────────┤
+│ CR005   │ TrackingNumber Uniqueness Audit        │ Zero duplicates found    │ Resolved │
+│         │ All TRK codes are 1:1 with OrderID     │ No rows removed          │          │
+├─────────┼────────────────────────────────────────┼──────────────────────────┼──────────┤
+│ CR006   │ Text Standardization Review            │ No modifications needed  │ Verified │
+│         │ Product/Payment/Status/Referral        │ Already Proper Case      │          │
+│         │ already clean from source              │ No whitespace issues     │          │
+├─────────┼────────────────────────────────────────┼──────────────────────────┼──────────┤
+│ CR007   │ Computed Field Validation              │ No modifications needed  │ Verified │
+│         │ TotalPrice = Quantity × UnitPrice      │ 100% pass rate           │          │
+│         │ validated across all 1,200 rows          │ (±$0.01 tolerance)       │          │
+├─────────┼────────────────────────────────────────┼──────────────────────────┼──────────┤
+│ CR008   │ Header Row Duplication Check           │ No duplication found     │ Verified │
+│         │ First row = actual data, not headers   │ No rows removed          │          │
+└─────────┴────────────────────────────────────────┴──────────────────────────┴──────────┘
+
+================================================================================
+11. KEY LEARNINGS & BEST PRACTICES
+================================================================================
+
+1. AUDIT BEFORE CLEANING
+   Never modify data before understanding what's dirty. The 8-issue scan
+   revealed that 5 issues were already clean — saving time and preventing
+   unnecessary transformations.
+
+2. PRESERVE STATISTICAL POWER
+   The DecodeLabs warning about listwise deletion is critical. Deleting 309
+   rows (25.8%) would have destroyed sample size and biased results.
+   Strategic imputation preserves data integrity.
+
+3. CHOOSE CONTEXT-APPROPRIATE IMPUTATION
+   Mean/median/mode are not universal solutions. For categorical fields like
+   CouponCode, a business-meaningful flag ('NONE') is more accurate than
+   statistical imputation.
+
+4. DOCUMENT EVERYTHING
+   The Change Log is not bureaucracy — it's accountability. Stakeholders,
+   auditors, and future-you need to know what changed and why.
+
+5. REPRODUCIBLE WORKFLOWS
+   Python scripts > Excel manual steps. Scripts can be re-run, version-
+   controlled, and peer-reviewed. This is the "Pro Move" per DecodeLabs.
+
+================================================================================
+12. CONCLUSION
+================================================================================
+
+Project 1 successfully transformed raw e-commerce data into production-ready
+"Gold Standard" format. All DecodeLabs verification gates passed:
+
+  ✅ 0% Error Rate on Unique Identifiers
+  ✅ 0% Error Rate on Date Formats  
+  ✅ 0% Data Loss
+  ✅ 100% Computed Field Validation
+
+The cleaned dataset is ready for:
+  • Business intelligence dashboards
+  • Machine learning model training
+  • Financial reporting and reconciliation
+  • Customer behavior analysis
+
+
+================================================================================
+                         END OF DOCUMENTATION
+                    DecodeLabs | Industrial Training Kit
+                         Batch 2026 | Virtual Intern
+================================================================================
